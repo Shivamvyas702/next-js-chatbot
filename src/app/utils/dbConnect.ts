@@ -12,7 +12,6 @@ declare global {
 }
 
 global.mongoose = global.mongoose || { conn: null, promise: null };
-console.log(MONGODB_URI,'shivamvya');
 
 let cached = global.mongoose;
 
