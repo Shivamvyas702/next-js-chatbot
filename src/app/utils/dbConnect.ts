@@ -1,0 +1,31 @@
+import mongoose, { Mongoose } from 'mongoose';
+
+const MONGODB_URI = process.env.MONGODB_URI!;
+
+if (!MONGODB_URI) throw new Error('Please define the MONGODB_URI environment variable');
+
+declare global {
+  var mongoose: {
+    conn: Mongoose | null;
+    promise: Promise<Mongoose> | null;
+  };
+}
+
+global.mongoose = global.mongoose || { conn: null, promise: null };
+console.log(MONGODB_URI,'shivamvya');
+
+let cached = global.mongoose;
+
+export default async function dbConnect() {
+  if (cached.conn) return cached.conn;
+
+  if (!cached.promise) {
+    cached.promise = mongoose.connect(MONGODB_URI, {
+      dbName: 'chatbot-app',
+      bufferCommands: false,
+    });
+  }
+
+  cached.conn = await cached.promise;
+  return cached.conn;
+}
