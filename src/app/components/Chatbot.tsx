@@ -74,52 +74,6 @@ const Chatbot = () => {
   }, []);
 
 
-  const handleEditTitle = async (chatId: string, currentTitle: string) => {
-    const newTitle = prompt('Edit chat title:', currentTitle);
-    if (!newTitle || newTitle === currentTitle) return;
-
-    try {
-      const res = await fetch(`/api/chat/${chatId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: newTitle }),
-      });
-
-      if (!res.ok) throw new Error('Failed to update title');
-      const { updated } = await res.json();
-
-      setChatHistory((prev) =>
-        prev.map((chat) =>
-          chat._id === chatId ? { ...chat, title: updated.title } : chat
-        )
-      );
-    } catch (err) {
-      console.error('Edit error:', err);
-      alert('Failed to edit chat title');
-    }
-  };
-
-  // ✅ Delete chat handler
-  const handleDeleteChat = async (targetId: string) => {
-    const confirmDelete = confirm('Are you sure you want to delete this chat?');
-    if (!confirmDelete) return;
-
-    try {
-      const res = await fetch(`/api/chat/${targetId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete chat');
-
-      setChatHistory((prev) => prev.filter((chat) => chat._id !== targetId));
-
-      if (chatId === targetId) {
-        setChatId(null);
-        setMessages([]);
-      }
-    } catch (err) {
-      console.error('Delete error:', err);
-      alert('Failed to delete chat');
-    }
-  };
-
   return (
     <div className="h-screen overflow-hidden">
       {/* Fixed Header */}
@@ -156,21 +110,6 @@ const Chatbot = () => {
                   <MessageSquare size={18} className="flex-shrink-0" />
                   <span className="truncate">{chat.title}</span>
                 </Button>
-
-                <div className="flex items-center gap-1">
-                  <button
-                    className="text-yellow-400 hover:text-yellow-500"
-                    onClick={() => handleEditTitle(chat._id, chat.title)}
-                  >
-                    ✎
-                  </button>
-                  <button
-                    className="text-red-500 hover:text-red-600"
-                    onClick={() => handleDeleteChat(chat._id)}
-                  >
-                    🗑
-                  </button>
-                </div>
               </div>
             ))}
 
