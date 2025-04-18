@@ -3,14 +3,42 @@ import { useState, useEffect } from 'react';
 import { sendMessageToGemini } from '../services/geminiApi';
 import { Menu, MessageSquare, Settings } from 'lucide-react';
 import Button from '@/app/components/ui/Button';
-import Card from '@/app/components/ui/Card';
 import Prism from 'prismjs';
-import 'prismjs/themes/prism-tomorrow.css';
+import 'prismjs/components/prism-javascript';
+import 'prismjs/components/prism-jsx';
+import 'prismjs/components/prism-typescript';
+import 'prismjs/components/prism-tsx';
+import 'prismjs/components/prism-python';
+// Add more as needed
 import { Send } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import rehypeHighlight from 'rehype-highlight';
-import 'prismjs/themes/prism-tomorrow.css'; // already imported if in global css
+import { Components } from 'react-markdown';
+import { ReactNode } from 'react';
+
+const markdownComponents: Components = {
+  code({ node, inline, className, children, ...props }: any) {
+    const match = /language-(\w+)/.exec(className || '');
+
+    if (inline) {
+      return (
+        <code className="bg-gray-200 text-sm px-1 py-0.5 rounded">
+          {children}
+        </code>
+      );
+    }
+
+    return (
+      <pre className="rounded-lg overflow-x-auto text-left">
+        <code className={className} {...props}>
+          {children}
+        </code>
+      </pre>
+    );
+  },
+};
+
+
 
 interface Chat {
   _id: string;
@@ -73,6 +101,8 @@ const Chatbot = () => {
     fetchChats();
   }, []);
 
+
+  
 
   return (
     <div className="h-screen overflow-hidden">
@@ -138,25 +168,9 @@ const Chatbot = () => {
                     {msg.startsWith('Bot:') ? (
                       <div className="prose prose-sm sm:prose lg:prose-lg max-w-none">
                         <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          rehypePlugins={[rehypeHighlight]}
-                          components={{
-                            code({ node, className = '', children, ...props }) {
-                              const language = className?.replace('language-', '') || '';
-                              const isInline = !className;
-
-                              return isInline ? (
-                                <code className="bg-gray-200 text-sm px-1 rounded">{children}</code>
-                              ) : (
-                                <pre className="bg-black text-white p-4 rounded-lg overflow-x-auto text-left">
-                                  <code className={`language-${language}`} {...props}>
-                                    {children}
-                                  </code>
-                                </pre>
-                              );
-                            }
-                          }}
-                        >
+                     remarkPlugins={[remarkGfm]}
+                     components={markdownComponents}
+                    >
                           {messageText}
                         </ReactMarkdown>
                       </div>
