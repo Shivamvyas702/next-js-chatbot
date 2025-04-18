@@ -17,6 +17,9 @@ import { Components } from 'react-markdown';
 import { ReactNode } from 'react';
 
 const markdownComponents: Components = {
+  p({ children }) {
+    return <p className="my-2">{children}</p>;
+  },
   code({ node, inline, className, children, ...props }: any) {
     const match = /language-(\w+)/.exec(className || '');
 
@@ -85,6 +88,7 @@ const Chatbot = () => {
 
   const [chatId, setChatId] = useState<string | null>(null);
   const [chatHistory, setChatHistory] = useState<Chat[]>([]);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
 
   useEffect(() => {
@@ -110,18 +114,29 @@ const Chatbot = () => {
       <header className="fixed top-0 left-0 right-0 z-10 flex items-center justify-between px-6 py-4 bg-gray-900 text-white shadow-md h-16">
         <h1 className="text-xl font-semibold">My Chatbot</h1>
         <h2 className="btn bg-slate-600 p-2 rounded-full">Profile</h2>
-        <Menu size={24} className="cursor-pointer sm:hidden" />
+        <Menu
+  size={24}
+  className="cursor-pointer sm:hidden"
+  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+/>
+
       </header>
 
       <div className="flex pt-16 h-full">
         {/* Fixed Sidebar */}
-        <aside className="hidden sm:flex flex-col w-64 bg-gray-800 text-white p-5 overflow-y-auto fixed top-16 bottom-0 left-0">
+        <aside
+  className={`
+    fixed top-16 bottom-0 left-0 w-64 bg-gray-800 text-white p-5 overflow-y-auto z-20
+    ${isSidebarOpen ? 'block' : 'hidden'} sm:block
+  `}
+>
           <nav className="flex flex-col gap-4">
             <Button
               className="flex items-center gap-2 text-gray-300 bg-transparent hover:bg-gray-600"
               onClick={() => {
                 setChatId(null);
                 setMessages([]);
+                setIsSidebarOpen(false)
               }}
             >
               <MessageSquare size={20} /> New Chats
@@ -135,6 +150,7 @@ const Chatbot = () => {
                     setChatId(chat._id);
                     const formatted = chat.messages.map((m: any) => `${m.role === 'user' ? 'You' : 'Bot'}: ${m.content}`);
                     setMessages(formatted);
+                    setIsSidebarOpen(false);
                   }}
                 >
                   <MessageSquare size={18} className="flex-shrink-0" />
