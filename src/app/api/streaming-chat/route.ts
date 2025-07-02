@@ -1,26 +1,29 @@
 import { sendMessageToGemini } from '../../services/geminiApi';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(message:string) {
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const message = searchParams.get('message');
+
+  if (!message) {
+    return new NextResponse('Message is required', { status: 400 });
+  }
+
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        // Call the Gemini API (or any other API you're using) to get the actual response
         const { response: botReply } = await sendMessageToGemini(message);
 
         const encoder = new TextEncoder();
-        let done = false;
-        let chunkSize = 1000; // Adjust chunk size if needed
+        const chunkSize = 1000;
 
-        // Simulate sending the bot response in chunks
         for (let i = 0; i < botReply.length; i += chunkSize) {
           const chunk = botReply.slice(i, i + chunkSize);
           controller.enqueue(encoder.encode(chunk));
-          await new Promise(resolve => setTimeout(resolve, 100)); // Simulate a delay for streaming
+          await new Promise(resolve => setTimeout(resolve, 100)); // Simulate delay
         }
 
-        controller.close(); // Close the stream once done
-
+        controller.close();
       } catch (error) {
         console.error('Error during streaming:', error);
         controller.error(error);
