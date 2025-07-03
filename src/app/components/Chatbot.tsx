@@ -291,7 +291,7 @@ const Chatbot = () => {
       {/* Fixed Header */}
       <header className="fixed top-0 left-0 right-0 z-10 flex items-center justify-between px-6 py-4 bg-gray-900 text-white shadow-md h-16">
         <h1 className="text-xl font-semibold">My Chatbot</h1>
-        <h2 className="btn bg-slate-600 p-2 rounded-full">Profile</h2>
+    
         <Menu
           size={24}
           className="cursor-pointer sm:hidden"
