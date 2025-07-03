@@ -13,17 +13,17 @@ export async function GET(req: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        const encoder = new TextEncoder();
         const chunkSize = 1000;
 
-        const botReply = await getGeminiReply(message); 
+     const botReply = await getGeminiReply(message);
+const encoder = new TextEncoder();
 
-        // Simulate typing chunk by chunk
-        for (let i = 0; i < botReply.length; i += chunkSize) {
-          const chunk = botReply.slice(i, i + chunkSize);
-          controller.enqueue(encoder.encode(chunk));
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
+for (let i = 0; i < botReply.length; i++) {
+  const char = botReply[i];
+  controller.enqueue(encoder.encode(char));
+  await new Promise(resolve => setTimeout(resolve, 15)); // smaller delay, more fluid
+}
+
 
         // ✅ Save to DB (optional)
         await sendMessageToGemini(message, undefined, botReply);

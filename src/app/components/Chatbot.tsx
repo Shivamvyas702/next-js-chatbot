@@ -80,16 +80,16 @@ const Chatbot = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isUpdatingTitle, setIsUpdatingTitle] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState('');
-
+  const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
   // Refs for detecting click outside
   const sidebarRef = useRef<HTMLDivElement>(null);
   const updateRef = useRef<HTMLDivElement>(null);  // or another suitable type depending on the element
 
   // Fetch chat history
-  useEffect(() => {
+
     const fetchChats = async () => {
       try {
-        const res = await fetch('/api/chat');
+        const res = await fetch(`${BASE_URL}/api/chat`);
         if (!res.ok) throw new Error(`Fetch error: ${res.status}`);
         const data = await res.json();
         setChatHistory(data.chats);
@@ -97,8 +97,11 @@ const Chatbot = () => {
         console.error('Failed to fetch chats:', err);
       }
     };
-    fetchChats();
-  }, []);
+ 
+    useEffect(() => {
+  fetchChats();
+}, []);
+
 
   useEffect(() => {
     // Detect click outside to close input and update/delete options
@@ -140,48 +143,48 @@ const Chatbot = () => {
   // };
 
   const handleSendMessage = async (message: string) => {
-  if (!message.trim()) return;
+    if (!message.trim()) return;
 
-  setMessages((prev) => [...prev, `You: ${message}`]);
-  setIsTyping(true);
+    setMessages((prev) => [...prev, `You: ${message}`]);
+    setIsTyping(true);
 
-  try {
-    const response = await fetch(`http://localhost:3000/api/streaming-chat?message=${encodeURIComponent(message)}`);
+    try {
+      const response = await fetch(`api/streaming-chat?message=${encodeURIComponent(message)}`);
 
 
-    if (!response.body) {
-      throw new Error("No response body");
+      if (!response.body) {
+        throw new Error("No response body");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let fullText = '';
+      let done = false;
+
+      // Start partial "Bot:" message
+      setMessages((prev) => [...prev, `Bot:`]);
+
+      while (!done) {
+        const { value, done: streamDone } = await reader.read();
+        done = streamDone;
+        const chunk = decoder.decode(value || new Uint8Array(), { stream: true });
+
+        fullText += chunk;
+
+        setMessages((prev) => {
+          // Replace last "Bot:" with current streamed response
+          const updated = [...prev];
+          updated[updated.length - 1] = `Bot: ${fullText}`;
+          return updated;
+        });
+      }
+    } catch (err) {
+      console.error('Streaming error:', err);
+      setMessages((prev) => [...prev, "Bot: Sorry, something went wrong."]);
+    } finally {
+      setIsTyping(false);
     }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder("utf-8");
-    let fullText = '';
-    let done = false;
-
-    // Start partial "Bot:" message
-    setMessages((prev) => [...prev, `Bot:`]);
-
-    while (!done) {
-      const { value, done: streamDone } = await reader.read();
-      done = streamDone;
-      const chunk = decoder.decode(value || new Uint8Array(), { stream: true });
-
-      fullText += chunk;
-
-      setMessages((prev) => {
-        // Replace last "Bot:" with current streamed response
-        const updated = [...prev];
-        updated[updated.length - 1] = `Bot: ${fullText}`;
-        return updated;
-      });
-    }
-  } catch (err) {
-    console.error('Streaming error:', err);
-    setMessages((prev) => [...prev, "Bot: Sorry, something went wrong."]);
-  } finally {
-    setIsTyping(false);
-  }
-};
+  };
 
 
 
@@ -189,7 +192,7 @@ const Chatbot = () => {
   // Function to handle chat title update
   const handleUpdateChatTitle = async (chatId: string, newTitle: string) => {
     try {
-      const response = await fetch('/api/chat/update', {
+      const response = await fetch(`${BASE_URL}//api/chat/update`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chatId, title: newTitle }),
@@ -204,6 +207,7 @@ const Chatbot = () => {
         );
         setIsUpdatingTitle(null);
         setNewTitle('');
+        await fetchChats();
       } else {
         const error = await response.json();
         console.error('Error updating chat:', error);
@@ -234,18 +238,21 @@ const Chatbot = () => {
 
     if (result.isConfirmed) {
       try {
-        const response = await fetch(`/api/chat/delete?id=${chatId}`, {
+        const response = await fetch(`${BASE_URL}/api/chat/delete?id=${chatId}`, {
           method: 'DELETE',
         });
 
         if (response.ok) {
           setChatHistory(chatHistory.filter((chat) => chat._id !== chatId));
           Swal.fire('Deleted!', 'Your chat has been removed.', 'success');
+
         } else {
           const error = await response.json();
           console.error('Error deleting chat:', error);
           Swal.fire('Oops!', 'Failed to delete chat.', 'error');
         }
+        await fetchChats(); // refresh state from server
+
       } catch (error) {
         console.error('Error communicating with delete API:', error);
         Swal.fire('Oops!', 'Something went wrong.', 'error');
@@ -369,8 +376,8 @@ const Chatbot = () => {
 
         {/* Main Chat Area */}
         <main className="flex-1 ml-0 sm:ml-64 flex flex-col bg-white">
-
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2">
+          {/* Message Container */}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3">
             {messages.length === 0 && (
               <div className="text-slate-300 pt-8 text-center">Ask Me Something...</div>
             )}
@@ -380,20 +387,22 @@ const Chatbot = () => {
               const messageText = msg.replace(/^(You:|Bot:)\s*/, '');
 
               return (
-                <div key={index} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`${isUser ? 'bg-blue-100' : 'bg-green-50'} p-4 rounded-lg w-full sm:w-3/4`}>
-
-
+                <div
+                  key={index}
+                  className={`flex ${isUser ? 'justify-end' : 'justify-start'} w-full`}
+                >
+                  <div
+                    className={`${isUser ? 'bg-blue-100' : 'bg-green-50'
+                      } p-3 rounded-xl shadow-sm max-w-[75%] sm:max-w-[60%] break-words`}
+                  >
                     {msg.startsWith('Bot:') ? (
                       <div className="prose prose-sm sm:prose lg:prose-lg max-w-none">
                         <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                           {messageText}
                         </ReactMarkdown>
-
-
                       </div>
                     ) : (
-                      <p className="whitespace-pre-wrap">{messageText}</p>
+                      <p className="whitespace-pre-wrap text-right">{messageText}</p>
                     )}
                   </div>
                 </div>
@@ -401,7 +410,7 @@ const Chatbot = () => {
             })}
             <div ref={messagesEndRef} />
 
-            {isTyping && <div className="text-gray-500">Bot is typing...</div>}
+            {isTyping && <div className="text-gray-500 italic text-sm">Bot is typing...</div>}
           </div>
 
           {/* Input Field */}
@@ -414,18 +423,19 @@ const Chatbot = () => {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleSubmit();
                 }}
-                className="w-full p-3 pr-12 border rounded-lg shadow-sm focus:outline-none"
+                className="w-full p-3 pr-12 border border-gray-300 rounded-full shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
                 placeholder="Ask me anything..."
               />
               <button
                 onClick={handleSubmit}
                 className="absolute right-3 text-blue-500 hover:text-blue-700"
               >
-                <Send size={32} />
+                <Send size={24} />
               </button>
             </div>
           </div>
         </main>
+
       </div>
     </div>
   );
