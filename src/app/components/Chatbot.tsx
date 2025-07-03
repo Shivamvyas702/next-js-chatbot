@@ -14,6 +14,9 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Components } from 'react-markdown';
 import { ComponentProps } from 'react';
+import Swal from 'sweetalert2';
+import 'sweetalert2/dist/sweetalert2.min.css';
+
 
 
 const markdownComponents: Components = {
@@ -119,22 +122,67 @@ const Chatbot = () => {
   }, []);
 
   // Function to handle sending messages
+  // const handleSendMessage = async (message: string) => {
+  //   if (!message.trim()) return;
+
+  //   setMessages((prev) => [...prev, `You: ${message}`]);
+  //   setIsTyping(true);
+
+  //   try {
+  //     const botResponse = await sendMessageToGemini(message);
+  //     setMessages((prev) => [...prev, `Bot: ${botResponse.response}`]);
+  //   } catch (error) {
+  //     console.error('Error communicating with Gemini:', error);
+  //     setMessages((prev) => [...prev, "Bot: Sorry, I couldn't understand that."]);
+  //   } finally {
+  //     setIsTyping(false);
+  //   }
+  // };
+
   const handleSendMessage = async (message: string) => {
-    if (!message.trim()) return;
+  if (!message.trim()) return;
 
-    setMessages((prev) => [...prev, `You: ${message}`]);
-    setIsTyping(true);
+  setMessages((prev) => [...prev, `You: ${message}`]);
+  setIsTyping(true);
 
-    try {
-      const botResponse = await sendMessageToGemini(message);
-      setMessages((prev) => [...prev, `Bot: ${botResponse.response}`]);
-    } catch (error) {
-      console.error('Error communicating with Gemini:', error);
-      setMessages((prev) => [...prev, "Bot: Sorry, I couldn't understand that."]);
-    } finally {
-      setIsTyping(false);
+  try {
+    const response = await fetch(`/api/streaming-chat?message=${encodeURIComponent(message)}`);
+
+
+    if (!response.body) {
+      throw new Error("No response body");
     }
-  };
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let fullText = '';
+    let done = false;
+
+    // Start partial "Bot:" message
+    setMessages((prev) => [...prev, `Bot:`]);
+
+    while (!done) {
+      const { value, done: streamDone } = await reader.read();
+      done = streamDone;
+      const chunk = decoder.decode(value || new Uint8Array(), { stream: true });
+
+      fullText += chunk;
+
+      setMessages((prev) => {
+        // Replace last "Bot:" with current streamed response
+        const updated = [...prev];
+        updated[updated.length - 1] = `Bot: ${fullText}`;
+        return updated;
+      });
+    }
+  } catch (err) {
+    console.error('Streaming error:', err);
+    setMessages((prev) => [...prev, "Bot: Sorry, something went wrong."]);
+  } finally {
+    setIsTyping(false);
+  }
+};
+
 
 
 
@@ -167,19 +215,44 @@ const Chatbot = () => {
 
   // Function to handle chat deletion
   const handleDeleteChat = async (chatId: string) => {
-    try {
-      const response = await fetch(`/api/chat/delete?id=${chatId}`, { method: 'DELETE' });
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: 'This chat will be permanently deleted!',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#e11d48', // rose-600
+      cancelButtonColor: '#64748b',  // slate-500
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'Cancel',
+      reverseButtons: true,
+      customClass: {
+        popup: 'rounded-lg',
+        confirmButton: 'swal2-confirm btn btn-danger',
+        cancelButton: 'swal2-cancel btn btn-secondary'
+      },
+    });
 
-      if (response.ok) {
-        setChatHistory(chatHistory.filter((chat) => chat._id !== chatId));
-      } else {
-        const error = await response.json();
-        console.error('Error deleting chat:', error);
+    if (result.isConfirmed) {
+      try {
+        const response = await fetch(`/api/chat/delete?id=${chatId}`, {
+          method: 'DELETE',
+        });
+
+        if (response.ok) {
+          setChatHistory(chatHistory.filter((chat) => chat._id !== chatId));
+          Swal.fire('Deleted!', 'Your chat has been removed.', 'success');
+        } else {
+          const error = await response.json();
+          console.error('Error deleting chat:', error);
+          Swal.fire('Oops!', 'Failed to delete chat.', 'error');
+        }
+      } catch (error) {
+        console.error('Error communicating with delete API:', error);
+        Swal.fire('Oops!', 'Something went wrong.', 'error');
       }
-    } catch (error) {
-      console.error('Error communicating with delete API:', error);
     }
   };
+
 
   const handleSubmit = () => {
     if (!inputValue.trim()) return;
@@ -191,8 +264,23 @@ const Chatbot = () => {
     Prism.highlightAll();
   }, [messages]);
 
+
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+
   return (
-    <div className="h-screen overflow-hidden">
+    // <div className="h-screen overflow-hidden">
+    <div className="h-[100dvh] flex flex-col overflow-hidden">
+
       {/* Fixed Header */}
       <header className="fixed top-0 left-0 right-0 z-10 flex items-center justify-between px-6 py-4 bg-gray-900 text-white shadow-md h-16">
         <h1 className="text-xl font-semibold">My Chatbot</h1>
@@ -244,7 +332,15 @@ const Chatbot = () => {
                 <div className="relative" ref={updateRef}>
                   <button
                     className="text-white cursor-pointer hover:bg-slate-700 p-2"
-                    onClick={() => setIsUpdatingTitle(chat._id === isUpdatingTitle ? null : chat._id)}
+                    onClick={() => {
+                      if (chat._id === isUpdatingTitle) {
+                        setIsUpdatingTitle(null);
+                      } else {
+                        setIsUpdatingTitle(chat._id);
+                        setNewTitle(chat.title);
+                      }
+                    }}
+
                   >
                     <MoreHorizontal size={20} />
                   </button>
@@ -272,7 +368,8 @@ const Chatbot = () => {
         </aside>
 
         {/* Main Chat Area */}
-        <main className="flex-1 ml-0 sm:ml-64 h-[calc(100vh-4rem)] flex flex-col bg-white">
+        <main className="flex-1 ml-0 sm:ml-64 flex flex-col bg-white">
+
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2">
             {messages.length === 0 && (
               <div className="text-slate-300 pt-8 text-center">Ask Me Something...</div>
@@ -285,6 +382,8 @@ const Chatbot = () => {
               return (
                 <div key={index} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
                   <div className={`${isUser ? 'bg-blue-100' : 'bg-green-50'} p-4 rounded-lg w-full sm:w-3/4`}>
+
+
                     {msg.startsWith('Bot:') ? (
                       <div className="prose prose-sm sm:prose lg:prose-lg max-w-none">
                         <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
@@ -300,6 +399,7 @@ const Chatbot = () => {
                 </div>
               );
             })}
+            <div ref={messagesEndRef} />
 
             {isTyping && <div className="text-gray-500">Bot is typing...</div>}
           </div>

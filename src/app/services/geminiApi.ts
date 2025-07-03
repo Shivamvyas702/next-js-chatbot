@@ -1,13 +1,15 @@
 // src/app/services/geminiApi.ts
 import axios from 'axios';
 
+export const sendMessageToGemini = async (
+  message: string,
+  chatId?: string,
+  botReply?: string  // ✅ allow direct injection of response
+): Promise<{ response: string, chatId: string }> => {
+  // ✅ Only fetch if not passed from server
+  const reply = botReply ?? (await axios.post('/api/chatbot', { message })).data.response;
 
-
-export const sendMessageToGemini = async (message: string, chatId?: string): Promise<{ response: string, chatId: string }> => {
-  const response = await axios.post('/api/chatbot', { message });
-  const botReply = response.data.response;
-
-  // Save both messages to DB
+  // Save messages
   const saveRes = await axios.post('/api/chat/save', {
     chatId,
     message: { role: 'user', content: message },
@@ -15,9 +17,8 @@ export const sendMessageToGemini = async (message: string, chatId?: string): Pro
 
   const updated = await axios.post('/api/chat/save', {
     chatId: saveRes.data.chat._id,
-    message: { role: 'bot', content: botReply },
+    message: { role: 'bot', content: reply },
   });
 
-  return { response: botReply, chatId: updated.data.chat._id };
+  return { response: reply, chatId: updated.data.chat._id };
 };
-
