@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
         const encoder = new TextEncoder();
         const chunkSize = 1000;
 
-        const botReply = await getGeminiReply(message); // ✅ No axios call
+        const botReply = await getGeminiReply(message); 
 
         // Simulate typing chunk by chunk
         for (let i = 0; i < botReply.length; i += chunkSize) {

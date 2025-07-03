@@ -7,15 +7,15 @@ export const sendMessageToGemini = async (
   botReply?: string  // ✅ allow direct injection of response
 ): Promise<{ response: string, chatId: string }> => {
   // ✅ Only fetch if not passed from server
-  const reply = botReply ?? (await axios.post('/api/chatbot', { message })).data.response;
+  const reply = botReply ?? (await axios.post(`${process.env.NEXT_PUBLIC_BASE_URL}/api/chat/save`, { message })).data.response;
 
   // Save messages
-  const saveRes = await axios.post('/api/chat/save', {
+  const saveRes = await axios.post(`${process.env.NEXT_PUBLIC_BASE_URL}/api/chat/save`, {
     chatId,
     message: { role: 'user', content: message },
   });
 
-  const updated = await axios.post('/api/chat/save', {
+  const updated = await axios.post(`${process.env.NEXT_PUBLIC_BASE_URL}/api/chat/save`, {
     chatId: saveRes.data.chat._id,
     message: { role: 'bot', content: reply },
   });

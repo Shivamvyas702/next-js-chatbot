@@ -146,7 +146,7 @@ const Chatbot = () => {
   setIsTyping(true);
 
   try {
-    const response = await fetch(`/api/streaming-chat?message=${encodeURIComponent(message)}`);
+    const response = await fetch(`http://localhost:3000/api/streaming-chat?message=${encodeURIComponent(message)}`);
 
 
     if (!response.body) {
