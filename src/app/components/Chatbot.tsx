@@ -87,20 +87,20 @@ const Chatbot = () => {
 
   // Fetch chat history
 
-    const fetchChats = async () => {
-      try {
-        const res = await fetch(`${BASE_URL}/api/chat`);
-        if (!res.ok) throw new Error(`Fetch error: ${res.status}`);
-        const data = await res.json();
-        setChatHistory(data.chats);
-      } catch (err) {
-        console.error('Failed to fetch chats:', err);
-      }
-    };
- 
-    useEffect(() => {
-  fetchChats();
-}, []);
+  const fetchChats = async () => {
+    try {
+      const res = await fetch(`${BASE_URL}/api/chat`);
+      if (!res.ok) throw new Error(`Fetch error: ${res.status}`);
+      const data = await res.json();
+      setChatHistory(data.chats);
+    } catch (err) {
+      console.error('Failed to fetch chats:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchChats();
+  }, []);
 
 
   useEffect(() => {
@@ -283,15 +283,40 @@ const Chatbot = () => {
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    if (isTyping) {
+      const timeout = setTimeout(() => setIsTyping(false), 1000);
+      return () => clearTimeout(timeout);
+    }
+  }, [isTyping]);
+
+  const [showSettings, setShowSettings] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false); // optional if you want a dark mode toggle
+  const [fontSize, setFontSize] = useState("md"); // optional for font size setting
+  const clearChatHistory = () => {
+    setChatHistory([]);
+    setMessages([]);
+    setChatId(null);
+    setShowSettings(false);
+  };
+
+  useEffect(() => {
+    document.body.classList.toggle("dark", isDarkMode);
+  }, [isDarkMode]);
+
+  const fontSizeClass = {
+    sm: "text-sm",
+    md: "text-base",
+    lg: "text-lg",
+  }[fontSize];
+
 
   return (
-    // <div className="h-screen overflow-hidden">
-    <div className="h-[100dvh] flex flex-col overflow-hidden">
+    <div className="h-screen flex flex-col overflow-hidden bg-gray-50 text-gray-900 font-sans">
 
-      {/* Fixed Header */}
-      <header className="fixed top-0 left-0 right-0 z-10 flex items-center justify-between px-6 py-4 bg-gray-900 text-white shadow-md h-16">
-        <h1 className="text-xl font-semibold">My Chatbot</h1>
-    
+      {/* Header */}
+      <header className="fixed top-0 left-0 right-0 z-20 flex items-center justify-between px-4 sm:px-6 py-4 bg-slate-900 text-white shadow-md h-16">
+        <h1 className="text-xl font-bold tracking-tight">My Chatbot</h1>
         <Menu
           size={24}
           className="cursor-pointer sm:hidden"
@@ -299,122 +324,120 @@ const Chatbot = () => {
         />
       </header>
 
-      <div className="flex pt-16 h-full">
-        {/* Fixed Sidebar */}
+      <div className="flex flex-1 pt-16 relative overflow-hidden">
+
+        {/* Sidebar */}
         <aside
           ref={sidebarRef}
-          className={`fixed top-16 bottom-0 left-0 w-64 bg-gray-800 text-white p-5 overflow-y-auto z-20 ${isSidebarOpen ? 'block' : 'hidden'
-            } sm:block`}
+          className={`z-30 sm:z-10 sm:relative sm:translate-x-0 w-64 bg-slate-800 text-white p-4 overflow-y-auto
+      fixed top-16 bottom-0 left-0 transition-transform duration-300 ease-in-out transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+            } sm:static`}
         >
           <nav className="flex flex-col gap-4">
             <Button
-              className="flex items-center gap-2 text-gray-300 bg-transparent hover:bg-gray-600"
+              className="flex items-center gap-2 bg-slate-700 hover:bg-indigo-600 text-white"
               onClick={() => {
                 setChatId(null);
                 setMessages([]);
                 setIsSidebarOpen(false);
               }}
             >
-              <MessageSquare size={20} /> New Chats
+              <MessageSquare size={20} /> New Chat
             </Button>
 
-            {chatHistory.map((chat) => (
-              <div key={chat._id} className="flex items-center justify-between gap-2">
-                <Button
-                  className="flex items-center gap-2 w-full px-2 py-1 text-white bg-transparent hover:bg-gray-600 truncate"
-                  onClick={() => {
-                    setChatId(chat._id);
-                    const formatted = chat.messages.map(
-                      (m) => `${m.role === 'user' ? 'You' : 'Bot'}: ${m.content}`
-                    );
-                    setMessages(formatted);
-                    setIsSidebarOpen(false);
-                  }}
-                >
-                  <MessageSquare size={18} className="flex-shrink-0" />
-                  <span className="truncate">{chat.title}</span>
-                </Button>
-
-                {/* Three dots menu for update and delete */}
-                <div className="relative" ref={updateRef}>
-                  <button
-                    className="text-white cursor-pointer hover:bg-slate-700 p-2"
+            <div className="mt-4 space-y-2">
+              {chatHistory.map((chat) => (
+                <div key={chat._id} className="flex items-center justify-between gap-1">
+                  <Button
+                    className="flex items-center gap-2 w-full px-2 py-1 bg-slate-700 hover:bg-slate-600 truncate"
                     onClick={() => {
-                      if (chat._id === isUpdatingTitle) {
-                        setIsUpdatingTitle(null);
-                      } else {
-                        setIsUpdatingTitle(chat._id);
-                        setNewTitle(chat.title);
-                      }
+                      setChatId(chat._id);
+                      const formatted = chat.messages.map((m) => `${m.role === 'user' ? 'You' : 'Bot'}: ${m.content}`);
+                      setMessages(formatted);
+                      setIsSidebarOpen(false);
                     }}
-
                   >
-                    <MoreHorizontal size={20} />
-                  </button>
-                  {isUpdatingTitle === chat._id && (
-                    <div className="absolute right-0 top-0 mt-2 bg-gray-700 p-2 rounded-md shadow-md">
-                      <input
-                        type="text"
-                        value={newTitle}
-                        onChange={(e) => setNewTitle(e.target.value)}
-                        className="bg-gray-800 text-white px-2 py-1 rounded mb-2"
-                        placeholder="Update title"
-                      />
-                      <Button onClick={() => handleUpdateChatTitle(chat._id, newTitle)} className='text-xs p-2 mr-2 bg-indigo-500'>Update</Button>
-                      <Button onClick={() => handleDeleteChat(chat._id)} className='text-xs p-2 bg-rose-500 '>Delete</Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
+                    <MessageSquare size={16} />
+                    <span className="truncate">{chat.title}</span>
+                  </Button>
 
-            <Button className="flex items-center gap-2 text-gray-300 bg-transparent hover:bg-gray-600">
+                  {/* Edit/Delete menu */}
+                  <div className="relative" ref={updateRef}>
+                    <button
+                      className="hover:bg-slate-700 p-2 rounded"
+                      onClick={() => {
+                        setIsUpdatingTitle(chat._id === isUpdatingTitle ? null : chat._id);
+                        setNewTitle(chat.title);
+                      }}
+                    >
+                      <MoreHorizontal size={18} />
+                    </button>
+                    {isUpdatingTitle === chat._id && (
+                      <div className="absolute right-0 top-0 mt-2 bg-slate-700 p-3 rounded-md shadow-md w-48 z-30">
+                        <input
+                          type="text"
+                          value={newTitle}
+                          onChange={(e) => setNewTitle(e.target.value)}
+                          className="w-full mb-2 px-2 py-1 bg-slate-800 text-white rounded"
+                          placeholder="Update title"
+                        />
+                        <div className="flex justify-end gap-2">
+                          <Button onClick={() => handleUpdateChatTitle(chat._id, newTitle)} className="text-xs px-3 py-1 bg-indigo-600 hover:bg-indigo-700">Update</Button>
+                          <Button onClick={() => handleDeleteChat(chat._id)} className="text-xs px-3 py-1 bg-rose-600 hover:bg-rose-700">Delete</Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Settings */}
+            <Button
+              className="flex items-center gap-2 text-gray-300 bg-transparent hover:bg-slate-700"
+              onClick={() => setShowSettings(true)}
+            >
               <Settings size={20} /> Settings
             </Button>
+
           </nav>
         </aside>
 
         {/* Main Chat Area */}
-        <main className="flex-1 ml-0 sm:ml-64 flex flex-col bg-white">
-          {/* Message Container */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3">
-            {messages.length === 0 && (
-              <div className="text-slate-300 pt-8 text-center">Ask Me Something...</div>
-            )}
+        <main className="flex-1 flex flex-col bg-white">
 
-            {messages.map((msg, index) => {
-              const isUser = msg.startsWith('You:');
-              const messageText = msg.replace(/^(You:|Bot:)\s*/, '');
+          {/* Messages */}
+          <div className={`flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-${fontSize}`}>
 
-              return (
-                <div
-                  key={index}
-                  className={`flex ${isUser ? 'justify-end' : 'justify-start'} w-full`}
-                >
-                  <div
-                    className={`${isUser ? 'bg-blue-100' : 'bg-green-50'
-                      } p-3 rounded-xl shadow-sm max-w-[75%] sm:max-w-[60%] break-words`}
-                  >
-                    {msg.startsWith('Bot:') ? (
-                      <div className="prose prose-sm sm:prose lg:prose-lg max-w-none">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                          {messageText}
-                        </ReactMarkdown>
-                      </div>
-                    ) : (
-                      <p className="whitespace-pre-wrap text-right">{messageText}</p>
-                    )}
+            {messages.length === 0 ? (
+              <div className="text-slate-400 pt-8 text-center text-base">Ask me something...</div>
+            ) : (
+              messages.map((msg, index) => {
+                const isUser = msg.startsWith('You:');
+                const messageText = msg.replace(/^(You:|Bot:)\s*/, '');
+                return (
+                  <div key={index} className={`flex ${isUser ? 'justify-end' : 'justify-start'} w-full`}>
+                    <div className={`${isUser ? 'bg-indigo-100' : 'bg-slate-100'} p-3 rounded-xl shadow-sm max-w-[75%] sm:max-w-[60%] break-words`}>
+                      {msg.startsWith('Bot:') ? (
+                        <div className="prose prose-sm sm:prose-base max-w-none text-gray-800">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                            {messageText}
+                          </ReactMarkdown>
+                        </div>
+                      ) : (
+                        <p className="text-gray-700 whitespace-pre-wrap text-right">{messageText}</p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
             <div ref={messagesEndRef} />
-
-            {isTyping && <div className="text-gray-500 italic text-sm">Bot is typing...</div>}
+            {isTyping && <div className="text-gray-400 italic text-sm">Bot is typing...</div>}
           </div>
 
-          {/* Input Field */}
-          <div className="border-t pt-4 px-4 sm:px-6 pb-4">
+          {/* Input */}
+          <div className="border-t pt-3 pb-4 px-4 sm:px-6 bg-white">
             <div className="relative flex items-center">
               <input
                 type="text"
@@ -423,21 +446,76 @@ const Chatbot = () => {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleSubmit();
                 }}
-                className="w-full p-3 pr-12 border border-gray-300 rounded-full shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+                className="w-full p-3 pr-12 border border-gray-300 rounded-full shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
                 placeholder="Ask me anything..."
               />
               <button
                 onClick={handleSubmit}
-                className="absolute right-3 text-blue-500 hover:text-blue-700"
+                className="absolute right-3 text-indigo-500 hover:text-indigo-700"
               >
                 <Send size={24} />
               </button>
             </div>
           </div>
         </main>
-
       </div>
+
+      {/* Settings Modal (optional — basic example) */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md w-80 space-y-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Settings</h2>
+
+            {/* Dark mode toggle */}
+            <label className="flex items-center justify-between text-sm">
+              <span className="text-gray-700 dark:text-gray-200">Dark Mode</span>
+              <input
+                type="checkbox"
+                checked={isDarkMode}
+                onChange={(e) => setIsDarkMode(e.target.checked)}
+                className="ml-2"
+              />
+            </label>
+
+            {/* Font Size Selector */}
+            <label className="flex flex-col text-sm text-gray-700 dark:text-gray-200">
+              Font Size
+              <select
+                value={fontSize}
+                onChange={(e) => setFontSize(e.target.value)}
+                className="mt-1 p-2 rounded border dark:bg-gray-700 dark:text-white"
+              >
+                <option value="sm">Small</option>
+                <option value="md">Medium</option>
+                <option value="lg">Large</option>
+              </select>
+            </label>
+
+            {/* Clear chat history */}
+        <div className="flex justify-between items-center pt-4 border-t border-gray-300 dark:border-gray-600">
+  <button
+    onClick={clearChatHistory}
+    className="text-sm text-red-600 hover:text-red-700 px-3 py-2 rounded transition-colors"
+  >
+    🗑 Clear All Chats
+  </button>
+
+  <button
+    onClick={() => setShowSettings(false)}
+    className="text-sm text-blue-600 hover:text-blue-700 px-3 py-2 rounded transition-colors"
+  >
+    ✖ Close
+  </button>
+</div>
+
+          </div>
+        </div>
+      )}
+
+
     </div>
+
+
   );
 };
 
