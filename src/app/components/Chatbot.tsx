@@ -192,7 +192,7 @@ const Chatbot = () => {
   // Function to handle chat title update
   const handleUpdateChatTitle = async (chatId: string, newTitle: string) => {
     try {
-      const response = await fetch(`${BASE_URL}//api/chat/update`, {
+      const response = await fetch(`${BASE_URL}/api/chat/update`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chatId, title: newTitle }),
@@ -293,12 +293,41 @@ const Chatbot = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false); // optional if you want a dark mode toggle
   const [fontSize, setFontSize] = useState("md"); // optional for font size setting
-  const clearChatHistory = () => {
-    setChatHistory([]);
-    setMessages([]);
-    setChatId(null);
-    setShowSettings(false);
-  };
+const clearChatHistory = async () => {
+  const result = await Swal.fire({
+    title: 'Clear all chats?',
+    text: 'This action cannot be undone!',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#e11d48',
+    cancelButtonColor: '#64748b',
+    confirmButtonText: 'Yes, clear all!',
+    cancelButtonText: 'Cancel',
+    reverseButtons: true,
+  });
+
+  if (!result.isConfirmed) return;
+
+  try {
+    const res = await fetch(`${BASE_URL}/api/chat/clear-all`, {
+      method: 'DELETE',
+    });
+
+    if (res.ok) {
+      setChatHistory([]);
+      setMessages([]);
+      setChatId(null);
+      setShowSettings(false);
+      Swal.fire('Cleared!', 'All chat history has been deleted.', 'success');
+    } else {
+      throw new Error("Failed to clear chat history");
+    }
+  } catch (err) {
+    console.error(err);
+    Swal.fire('Oops!', 'Something went wrong.', 'error');
+  }
+};
+
 
   useEffect(() => {
     document.body.classList.toggle("dark", isDarkMode);
@@ -315,7 +344,8 @@ const Chatbot = () => {
     <div className="h-screen flex flex-col overflow-hidden bg-gray-50 text-gray-900 font-sans">
 
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-20 flex items-center justify-between px-4 sm:px-6 py-4 bg-slate-900 text-white shadow-md h-16">
+      <header className="fixed top-0 left-0 right-0 z-20 flex items-center justify-between
+       px-4 sm:px-6 py-4 bg-slate-900 text-white shadow-md h-16">
         <h1 className="text-xl font-bold tracking-tight">My Chatbot</h1>
         <Menu
           size={24}
@@ -404,10 +434,11 @@ const Chatbot = () => {
         </aside>
 
         {/* Main Chat Area */}
-        <main className="flex-1 flex flex-col bg-white">
+        <main className="flex-1 flex flex-col bg-white ">
 
           {/* Messages */}
-          <div className={`flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-${fontSize}`}>
+      <div className={`flex-1 overflow-y-auto p-4 sm:p-6 pt-20 space-y-4 text-${fontSizeClass}`}>
+
 
             {messages.length === 0 ? (
               <div className="text-slate-400 pt-8 text-center text-base">Ask me something...</div>
